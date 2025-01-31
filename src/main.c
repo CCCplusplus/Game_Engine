@@ -1,8 +1,98 @@
+/*
+Raylib example file.
+This is an example main file for a simple raylib project.
+Use this as a starting point or replace it with your code.
+
+by Jeffery Myers is marked with CC0 1.0. To view a copy of this license, visit https://creativecommons.org/publicdomain/zero/1.0/
+
+*/
+
 #include "raylib.h"
 #include "rlgl.h"
-#include "resource_dir.h"	// utility header for SearchAndSetResourceDir
 #include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
 
+#include "resource_dir.h" // utility header for SearchAndSetResourceDir
+
+// Definición de niveles de verbosidad
+typedef enum {
+    LOG_LEVEL_ERROR,
+    LOG_LEVEL_WARNING,
+    LOG_LEVEL_INFO,
+    LOG_LEVEL_DEBUG
+} LogLevel;
+
+// Definición de módulos
+typedef enum {
+    MODULE_RENDER,
+    MODULE_INPUT,
+    MODULE_AUDIO,
+	MODULE_PHYSICS,
+	MODULE_FILES,
+    MODULE_NETWORK
+} Module;
+
+// Variables globales para los filtros
+LogLevel currentLogLevel = LOG_LEVEL_DEBUG;
+
+// Función para establecer el nivel de verbosidad
+void SetLogLevel(LogLevel level) {
+    currentLogLevel = level;
+}
+
+// Función de DebugLog con filtros
+void DebugLog(LogLevel level, Module module, const char* message) {
+    if (level <= currentLogLevel) {
+        const char* levelStr;
+        switch (level) {
+        case LOG_LEVEL_ERROR: levelStr = "ERROR"; break;
+        case LOG_LEVEL_WARNING: levelStr = "WARNING"; break;
+        case LOG_LEVEL_INFO: levelStr = "INFO"; break;
+        case LOG_LEVEL_DEBUG: levelStr = "DEBUG"; break;
+        default: levelStr = "UNKNOWN"; break;
+        }
+
+        const char* moduleStr;
+        switch (module) {
+        case MODULE_RENDER: moduleStr = "RENDER"; break;
+        case MODULE_INPUT: moduleStr = "INPUT"; break;
+        case MODULE_AUDIO: moduleStr = "AUDIO"; break;
+        case MODULE_NETWORK: moduleStr = "NETWORK"; break;
+		case MODULE_PHYSICS: moduleStr = "PHYSICS"; break;
+		case MODULE_FILES: moduleStr = "FILES"; break;
+        default: moduleStr = "UNKNOWN"; break;
+        }
+
+        printf("[%s] [%s] %s\n", levelStr, moduleStr, message);
+    }
+}
+
+typedef struct {
+    int resX;
+    int resY;
+    bool fullscreen;
+    bool vsync;
+} VideoConfig;
+
+// Función para leer la configuración desde un archivo INI
+void LoadConfig(const char* filename, VideoConfig* config) {
+    FILE* file = fopen(filename, "r");
+    if (file == NULL) {
+        printf("No se puede abrir el archivo %s\n", filename);
+        return;
+    }
+
+    char line[128];
+    while (fgets(line, sizeof(line), file)) {
+        if (sscanf(line, "resx=%d", &config->resX) == 1) continue;
+        if (sscanf(line, "resy=%d", &config->resY) == 1) continue;
+        if (sscanf(line, "fullscreen=%d", (int*)&config->fullscreen) == 1) continue;
+        if (sscanf(line, "vsync=%d", (int*)&config->vsync) == 1) continue;
+    }
+
+    fclose(file);
+}
 
 void DrawCubeTexture(Texture2D texture, Vector3 position, float width, float height, float length, Color color)
 {
@@ -65,126 +155,71 @@ void DrawCubeTexture(Texture2D texture, Vector3 position, float width, float hei
     rlSetTexture(0);
 }
 
-// Draw cube with texture piece applied to all faces
-void DrawCubeTextureRec(Texture2D texture, Rectangle source, Vector3 position, float width, float height, float length, Color color)
-{
-    float x = position.x;
-    float y = position.y;
-    float z = position.z;
-    float texWidth = (float)texture.width;
-    float texHeight = (float)texture.height;
-
-    // Set desired texture to be enabled while drawing following vertex data
-    rlSetTexture(texture.id);
-
-    // We calculate the normalized texture coordinates for the desired texture-source-rectangle
-    // It means converting from (tex.width, tex.height) coordinates to [0.0f, 1.0f] equivalent 
-    rlBegin(RL_QUADS);
-    rlColor4ub(color.r, color.g, color.b, color.a);
-
-    // Front face
-    rlNormal3f(0.0f, 0.0f, 1.0f);
-    rlTexCoord2f(source.x / texWidth, (source.y + source.height) / texHeight);
-    rlVertex3f(x - width / 2, y - height / 2, z + length / 2);
-    rlTexCoord2f((source.x + source.width) / texWidth, (source.y + source.height) / texHeight);
-    rlVertex3f(x + width / 2, y - height / 2, z + length / 2);
-    rlTexCoord2f((source.x + source.width) / texWidth, source.y / texHeight);
-    rlVertex3f(x + width / 2, y + height / 2, z + length / 2);
-    rlTexCoord2f(source.x / texWidth, source.y / texHeight);
-    rlVertex3f(x - width / 2, y + height / 2, z + length / 2);
-
-    // Back face
-    rlNormal3f(0.0f, 0.0f, -1.0f);
-    rlTexCoord2f((source.x + source.width) / texWidth, (source.y + source.height) / texHeight);
-    rlVertex3f(x - width / 2, y - height / 2, z - length / 2);
-    rlTexCoord2f((source.x + source.width) / texWidth, source.y / texHeight);
-    rlVertex3f(x - width / 2, y + height / 2, z - length / 2);
-    rlTexCoord2f(source.x / texWidth, source.y / texHeight);
-    rlVertex3f(x + width / 2, y + height / 2, z - length / 2);
-    rlTexCoord2f(source.x / texWidth, (source.y + source.height) / texHeight);
-    rlVertex3f(x + width / 2, y - height / 2, z - length / 2);
-
-    // Top face
-    rlNormal3f(0.0f, 1.0f, 0.0f);
-    rlTexCoord2f(source.x / texWidth, source.y / texHeight);
-    rlVertex3f(x - width / 2, y + height / 2, z - length / 2);
-    rlTexCoord2f(source.x / texWidth, (source.y + source.height) / texHeight);
-    rlVertex3f(x - width / 2, y + height / 2, z + length / 2);
-    rlTexCoord2f((source.x + source.width) / texWidth, (source.y + source.height) / texHeight);
-    rlVertex3f(x + width / 2, y + height / 2, z + length / 2);
-    rlTexCoord2f((source.x + source.width) / texWidth, source.y / texHeight);
-    rlVertex3f(x + width / 2, y + height / 2, z - length / 2);
-
-    // Bottom face
-    rlNormal3f(0.0f, -1.0f, 0.0f);
-    rlTexCoord2f((source.x + source.width) / texWidth, source.y / texHeight);
-    rlVertex3f(x - width / 2, y - height / 2, z - length / 2);
-    rlTexCoord2f(source.x / texWidth, source.y / texHeight);
-    rlVertex3f(x + width / 2, y - height / 2, z - length / 2);
-    rlTexCoord2f(source.x / texWidth, (source.y + source.height) / texHeight);
-    rlVertex3f(x + width / 2, y - height / 2, z + length / 2);
-    rlTexCoord2f((source.x + source.width) / texWidth, (source.y + source.height) / texHeight);
-    rlVertex3f(x - width / 2, y - height / 2, z + length / 2);
-
-    // Right face
-    rlNormal3f(1.0f, 0.0f, 0.0f);
-    rlTexCoord2f((source.x + source.width) / texWidth, (source.y + source.height) / texHeight);
-    rlVertex3f(x + width / 2, y - height / 2, z - length / 2);
-    rlTexCoord2f((source.x + source.width) / texWidth, source.y / texHeight);
-    rlVertex3f(x + width / 2, y + height / 2, z - length / 2);
-    rlTexCoord2f(source.x / texWidth, source.y / texHeight);
-    rlVertex3f(x + width / 2, y + height / 2, z + length / 2);
-    rlTexCoord2f(source.x / texWidth, (source.y + source.height) / texHeight);
-    rlVertex3f(x + width / 2, y - height / 2, z + length / 2);
-
-    // Left face
-    rlNormal3f(-1.0f, 0.0f, 0.0f);
-    rlTexCoord2f(source.x / texWidth, (source.y + source.height) / texHeight);
-    rlVertex3f(x - width / 2, y - height / 2, z - length / 2);
-    rlTexCoord2f((source.x + source.width) / texWidth, (source.y + source.height) / texHeight);
-    rlVertex3f(x - width / 2, y - height / 2, z + length / 2);
-    rlTexCoord2f((source.x + source.width) / texWidth, source.y / texHeight);
-    rlVertex3f(x - width / 2, y + height / 2, z + length / 2);
-    rlTexCoord2f(source.x / texWidth, source.y / texHeight);
-    rlVertex3f(x - width / 2, y + height / 2, z - length / 2);
-
-    rlEnd();
-
-    rlSetTexture(0);
-}
-
 int main(int argc, char** argv)
 {
-	// Tell the window to use vsync and work on high DPI displays
-	SetConfigFlags(FLAG_VSYNC_HINT | FLAG_WINDOW_HIGHDPI);
 
-    int resX = 1280;
-    int resY = 800;
-    bool wantsFullscreen = false;
-    if (argc > 1)
-    {
-        for (int i = 0; i < argc; i++)
-        { 
-            //std::cout << "arg " << i << argv[i] << std::endl;
-            fprintf(stderr, "arg %i : %s \n", i, argv[i]);
-            if (strcmp(argv[i], "-resx") == 0) 
-            {
-                resX = atoi(argv[i + 1]);
-            }
-            if (strcmp(argv[i], "-resy") == 0)
-            {
-                resY = atoi(argv[i + 1]);
-            }
-            if (strcmp(argv[i], "-fullscreen") == 0)
-            {
-                //wantsFullscreen = true;
-            }
-        }
+    VideoConfig config = { 1024, 800, false, false };  // Valores predeterminados
+
+    LoadConfig("config.ini", &config);
+
+    FILE* configFile = fopen("config.ini", "r");
+    if (configFile == NULL) {
+        DebugLog(LOG_LEVEL_ERROR, MODULE_FILES, "config.ini not found");
+    } else {
+        fclose(configFile);
     }
 
-	// Create the window and OpenGL context
-	InitWindow(1280, 800, "Hello Raylib");
-	if (wantsFullscreen) ToggleFullscreen();
+    // Configurar la ventana según la configuración leída
+    if (config.vsync) {
+        SetConfigFlags(FLAG_VSYNC_HINT);
+    }
+    if (config.fullscreen) {
+        SetConfigFlags(FLAG_FULLSCREEN_MODE);
+    }
+
+    // Crear la ventana y el contexto OpenGL
+    InitWindow(config.resX, config.resY, "Hello Raylib");
+    if (config.fullscreen) {
+        ToggleFullscreen();
+    }
+	// Tell the window to use vsync and work on high DPI displays
+	//SetConfigFlags(FLAG_VSYNC_HINT | FLAG_WINDOW_HIGHDPI);
+
+ //   int resX = 1280;
+ //   int resY = 800;
+ //   bool wantsFullscreen = false;
+ //   if (argc > 1)
+ //   {
+ //       for (int i = 0; i < argc; i++)
+ //       { 
+ //           //std::cout << "arg " << i << argv[i] << std::endl;
+ //           fprintf(stderr, "arg %i : %s \n", i, argv[i]);
+ //           if (strcmp(argv[i], "-resx") == 0) 
+ //           {
+ //               resX = atoi(argv[i + 1]);
+ //           }
+ //           if (strcmp(argv[i], "-resy") == 0)
+ //           {
+ //               resY = atoi(argv[i + 1]);
+ //           }
+ //           if (strcmp(argv[i], "-fullscreen") == 0)
+ //           {
+ //               //wantsFullscreen = true;
+ //           }
+ //       }
+ //   }
+
+
+     // Establecer filtros
+    SetLogLevel(LOG_LEVEL_DEBUG);
+
+    // Ejemplos de uso de DebugLog
+    DebugLog(LOG_LEVEL_INFO, MODULE_RENDER, "Render module initialized.");
+    DebugLog(LOG_LEVEL_WARNING, MODULE_INPUT, "Input module warning.");
+    DebugLog(LOG_LEVEL_ERROR, MODULE_AUDIO, "Audio module error.");
+    DebugLog(LOG_LEVEL_DEBUG, MODULE_RENDER, "Render module debug message.");
+
+    printf("Iniitializing game's sub system.\n");
 
     Model model = LoadModel("resources/cottage_obj.obj");                 // Load model
     Texture2D texture = LoadTexture("resources/cottage_diffuse.png"); // Load model texture
