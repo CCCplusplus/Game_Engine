@@ -186,16 +186,18 @@ int main(int argc, char** argv)
 	InitWindow(1280, 800, "Hello Raylib");
 	if (wantsFullscreen) ToggleFullscreen();
 
+    Model model = LoadModel("resources/cottage_obj.obj");                 // Load model
+    Texture2D texture = LoadTexture("resources/cottage_diffuse.png"); // Load model texture
+    model.materials[0].maps[MATERIAL_MAP_DIFFUSE].texture = texture;            // Set map diffuse texture
 
-    Vector3 position = { 0.0f, 0.0f, 0.0f };                    // Set model position
+    Vector3 position = { 0.0f, 0.0f, 0.0f };
 
-    //BoundingBox bounds = GetMeshBoundingBox(model.meshes[0]);   // Set model bounds
+    BoundingBox bounds = GetMeshBoundingBox(model.meshes[0]);
+
 
 	// Utility function from resource_dir.h to find the resources folder and set it as the current working directory so we can load from it
 	SearchAndSetResourceDir("resources");
 
-	// Load a texture from the resources directory
-	Texture wabbit = LoadTexture("wabbit_alpha.png");
 
 	Texture cubetext = LoadTexture("wood.png");
 
@@ -219,6 +221,39 @@ int main(int argc, char** argv)
 		UpdateCamera(&camera, CAMERA_FREE);
 
 
+        if (IsFileDropped())
+        {
+            FilePathList droppedFiles = LoadDroppedFiles();
+
+            if (droppedFiles.count == 1) // Only support one file dropped
+            {
+                if (IsFileExtension(droppedFiles.paths[0], ".obj") ||
+                    IsFileExtension(droppedFiles.paths[0], ".gltf") ||
+                    IsFileExtension(droppedFiles.paths[0], ".glb") ||
+                    IsFileExtension(droppedFiles.paths[0], ".vox") ||
+                    IsFileExtension(droppedFiles.paths[0], ".iqm") ||
+                    IsFileExtension(droppedFiles.paths[0], ".m3d"))       // Model file formats supported
+                {
+                    UnloadModel(model);                         // Unload previous model
+                    model = LoadModel(droppedFiles.paths[0]);   // Load new model
+                    model.materials[0].maps[MATERIAL_MAP_DIFFUSE].texture = texture; // Set current map diffuse texture
+
+                    bounds = GetMeshBoundingBox(model.meshes[0]);
+
+                    // TODO: Move camera position from target enough distance to visualize model properly
+                }
+                else if (IsFileExtension(droppedFiles.paths[0], ".png"))  // Texture file formats supported
+                {
+                    // Unload current model texture and load new one
+                    UnloadTexture(texture);
+                    texture = LoadTexture(droppedFiles.paths[0]);
+                    model.materials[0].maps[MATERIAL_MAP_DIFFUSE].texture = texture;
+                }
+            }
+
+            UnloadDroppedFiles(droppedFiles);    // Unload filepaths from memory
+        }
+
 
 		// drawing
 		BeginDrawing();
@@ -236,7 +271,7 @@ int main(int argc, char** argv)
 
 		BeginMode3D(camera);
 
-
+        DrawModel(model, position, 1.0f, WHITE);
 
 		//DrawCube((Vector3) { cubeX, cubeY, cubeZ }, 5,5,5, RED);
         DrawCubeTexture(cubetext, (Vector3) { cubeX, cubeY, cubeZ }, 5, 5, 5, RAYWHITE);
@@ -262,9 +297,9 @@ int main(int argc, char** argv)
 		EndDrawing();
 	}
 
-	// cleanup
-	// unload our texture so it can be cleaned up
-	UnloadTexture(wabbit);
+    UnloadTexture(texture); 
+    UnloadTexture(cubetext);
+    UnloadModel(model);        
 
 
 	// destroy the window and cleanup the OpenGL context
