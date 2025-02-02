@@ -3,8 +3,7 @@ Raylib example file.
 This is an example main file for a simple raylib project.
 Use this as a starting point or replace it with your code.
 
-by Jeffery Myers is marked with CC0 1.0. To view a copy of this license, visit https://creativecommons.org/publicdomain/zero/1.0/
-
+by Jeffery Myers is marked with CC0 1.0.
 */
 
 #include "raylib.h"
@@ -15,7 +14,9 @@ by Jeffery Myers is marked with CC0 1.0. To view a copy of this license, visit h
 
 #include "resource_dir.h" // utility header for SearchAndSetResourceDir
 
-// Definición de niveles de verbosidad
+// -----------------------------------------------------------------------------
+// Definición de niveles de verbosidad y módulos para DebugLog
+// -----------------------------------------------------------------------------
 typedef enum {
     LOG_LEVEL_ERROR,
     LOG_LEVEL_WARNING,
@@ -23,25 +24,21 @@ typedef enum {
     LOG_LEVEL_DEBUG
 } LogLevel;
 
-// Definición de módulos
 typedef enum {
     MODULE_RENDER,
     MODULE_INPUT,
     MODULE_AUDIO,
-	MODULE_PHYSICS,
-	MODULE_FILES,
+    MODULE_PHYSICS,
+    MODULE_FILES,
     MODULE_NETWORK
 } Module;
 
-// Variables globales para los filtros
 LogLevel currentLogLevel = LOG_LEVEL_DEBUG;
 
-// Función para establecer el nivel de verbosidad
 void SetLogLevel(LogLevel level) {
     currentLogLevel = level;
 }
 
-// Función de DebugLog con filtros
 void DebugLog(LogLevel level, Module module, const char* message) {
     if (level <= currentLogLevel) {
         const char* levelStr;
@@ -59,15 +56,26 @@ void DebugLog(LogLevel level, Module module, const char* message) {
         case MODULE_INPUT: moduleStr = "INPUT"; break;
         case MODULE_AUDIO: moduleStr = "AUDIO"; break;
         case MODULE_NETWORK: moduleStr = "NETWORK"; break;
-		case MODULE_PHYSICS: moduleStr = "PHYSICS"; break;
-		case MODULE_FILES: moduleStr = "FILES"; break;
+        case MODULE_PHYSICS: moduleStr = "PHYSICS"; break;
+        case MODULE_FILES: moduleStr = "FILES"; break;
         default: moduleStr = "UNKNOWN"; break;
         }
 
+        // Imprime en la consola
         printf("[%s] [%s] %s\n", levelStr, moduleStr, message);
+
+        // Se añade al archivo debug.log
+        FILE* logFile = fopen("debug.log", "a");
+        if (logFile != NULL) {
+            fprintf(logFile, "[%s] [%s] %s\n", levelStr, moduleStr, message);
+            fclose(logFile);
+        }
     }
 }
 
+// -----------------------------------------------------------------------------
+// Estructura y función para cargar configuración desde un archivo INI
+// -----------------------------------------------------------------------------
 typedef struct {
     int resX;
     int resY;
@@ -75,7 +83,6 @@ typedef struct {
     bool vsync;
 } VideoConfig;
 
-// Función para leer la configuración desde un archivo INI
 void LoadConfig(const char* filename, VideoConfig* config) {
     FILE* file = fopen(filename, "r");
     if (file == NULL) {
@@ -94,250 +101,219 @@ void LoadConfig(const char* filename, VideoConfig* config) {
     fclose(file);
 }
 
+// -----------------------------------------------------------------------------
+// Función para dibujar un cubo con textura
+// -----------------------------------------------------------------------------
 void DrawCubeTexture(Texture2D texture, Vector3 position, float width, float height, float length, Color color)
 {
     float x = position.x;
     float y = position.y;
     float z = position.z;
 
-    // Set desired texture to be enabled while drawing following vertex data
     rlSetTexture(texture.id);
-
-    // Vertex data transformation can be defined with the commented lines,
-    // but in this example we calculate the transformed vertex data directly when calling rlVertex3f()
-    //rlPushMatrix();
-        // NOTE: Transformation is applied in inverse order (scale -> rotate -> translate)
-        //rlTranslatef(2.0f, 0.0f, 0.0f);
-        //rlRotatef(45, 0, 1, 0);
-        //rlScalef(2.0f, 2.0f, 2.0f);
 
     rlBegin(RL_QUADS);
     rlColor4ub(color.r, color.g, color.b, color.a);
     // Front Face
-    rlNormal3f(0.0f, 0.0f, 1.0f);       // Normal Pointing Towards Viewer
-    rlTexCoord2f(0.0f, 0.0f); rlVertex3f(x - width / 2, y - height / 2, z + length / 2);  // Bottom Left Of The Texture and Quad
-    rlTexCoord2f(1.0f, 0.0f); rlVertex3f(x + width / 2, y - height / 2, z + length / 2);  // Bottom Right Of The Texture and Quad
-    rlTexCoord2f(1.0f, 1.0f); rlVertex3f(x + width / 2, y + height / 2, z + length / 2);  // Top Right Of The Texture and Quad
-    rlTexCoord2f(0.0f, 1.0f); rlVertex3f(x - width / 2, y + height / 2, z + length / 2);  // Top Left Of The Texture and Quad
+    rlNormal3f(0.0f, 0.0f, 1.0f);
+    rlTexCoord2f(0.0f, 0.0f); rlVertex3f(x - width / 2, y - height / 2, z + length / 2);
+    rlTexCoord2f(1.0f, 0.0f); rlVertex3f(x + width / 2, y - height / 2, z + length / 2);
+    rlTexCoord2f(1.0f, 1.0f); rlVertex3f(x + width / 2, y + height / 2, z + length / 2);
+    rlTexCoord2f(0.0f, 1.0f); rlVertex3f(x - width / 2, y + height / 2, z + length / 2);
     // Back Face
-    rlNormal3f(0.0f, 0.0f, -1.0f);     // Normal Pointing Away From Viewer
-    rlTexCoord2f(1.0f, 0.0f); rlVertex3f(x - width / 2, y - height / 2, z - length / 2);  // Bottom Right Of The Texture and Quad
-    rlTexCoord2f(1.0f, 1.0f); rlVertex3f(x - width / 2, y + height / 2, z - length / 2);  // Top Right Of The Texture and Quad
-    rlTexCoord2f(0.0f, 1.0f); rlVertex3f(x + width / 2, y + height / 2, z - length / 2);  // Top Left Of The Texture and Quad
-    rlTexCoord2f(0.0f, 0.0f); rlVertex3f(x + width / 2, y - height / 2, z - length / 2);  // Bottom Left Of The Texture and Quad
+    rlNormal3f(0.0f, 0.0f, -1.0f);
+    rlTexCoord2f(1.0f, 0.0f); rlVertex3f(x - width / 2, y - height / 2, z - length / 2);
+    rlTexCoord2f(1.0f, 1.0f); rlVertex3f(x - width / 2, y + height / 2, z - length / 2);
+    rlTexCoord2f(0.0f, 1.0f); rlVertex3f(x + width / 2, y + height / 2, z - length / 2);
+    rlTexCoord2f(0.0f, 0.0f); rlVertex3f(x + width / 2, y - height / 2, z - length / 2);
     // Top Face
-    rlNormal3f(0.0f, 1.0f, 0.0f);       // Normal Pointing Up
-    rlTexCoord2f(0.0f, 1.0f); rlVertex3f(x - width / 2, y + height / 2, z - length / 2);  // Top Left Of The Texture and Quad
-    rlTexCoord2f(0.0f, 0.0f); rlVertex3f(x - width / 2, y + height / 2, z + length / 2);  // Bottom Left Of The Texture and Quad
-    rlTexCoord2f(1.0f, 0.0f); rlVertex3f(x + width / 2, y + height / 2, z + length / 2);  // Bottom Right Of The Texture and Quad
-    rlTexCoord2f(1.0f, 1.0f); rlVertex3f(x + width / 2, y + height / 2, z - length / 2);  // Top Right Of The Texture and Quad
+    rlNormal3f(0.0f, 1.0f, 0.0f);
+    rlTexCoord2f(0.0f, 1.0f); rlVertex3f(x - width / 2, y + height / 2, z - length / 2);
+    rlTexCoord2f(0.0f, 0.0f); rlVertex3f(x - width / 2, y + height / 2, z + length / 2);
+    rlTexCoord2f(1.0f, 0.0f); rlVertex3f(x + width / 2, y + height / 2, z + length / 2);
+    rlTexCoord2f(1.0f, 1.0f); rlVertex3f(x + width / 2, y + height / 2, z - length / 2);
     // Bottom Face
-    rlNormal3f(0.0f, -1.0f, 0.0f);     // Normal Pointing Down
-    rlTexCoord2f(1.0f, 1.0f); rlVertex3f(x - width / 2, y - height / 2, z - length / 2);  // Top Right Of The Texture and Quad
-    rlTexCoord2f(0.0f, 1.0f); rlVertex3f(x + width / 2, y - height / 2, z - length / 2);  // Top Left Of The Texture and Quad
-    rlTexCoord2f(0.0f, 0.0f); rlVertex3f(x + width / 2, y - height / 2, z + length / 2);  // Bottom Left Of The Texture and Quad
-    rlTexCoord2f(1.0f, 0.0f); rlVertex3f(x - width / 2, y - height / 2, z + length / 2);  // Bottom Right Of The Texture and Quad
-    // Right face
-    rlNormal3f(1.0f, 0.0f, 0.0f);       // Normal Pointing Right
-    rlTexCoord2f(1.0f, 0.0f); rlVertex3f(x + width / 2, y - height / 2, z - length / 2);  // Bottom Right Of The Texture and Quad
-    rlTexCoord2f(1.0f, 1.0f); rlVertex3f(x + width / 2, y + height / 2, z - length / 2);  // Top Right Of The Texture and Quad
-    rlTexCoord2f(0.0f, 1.0f); rlVertex3f(x + width / 2, y + height / 2, z + length / 2);  // Top Left Of The Texture and Quad
-    rlTexCoord2f(0.0f, 0.0f); rlVertex3f(x + width / 2, y - height / 2, z + length / 2);  // Bottom Left Of The Texture and Quad
+    rlNormal3f(0.0f, -1.0f, 0.0f);
+    rlTexCoord2f(1.0f, 1.0f); rlVertex3f(x - width / 2, y - height / 2, z - length / 2);
+    rlTexCoord2f(0.0f, 1.0f); rlVertex3f(x + width / 2, y - height / 2, z - length / 2);
+    rlTexCoord2f(0.0f, 0.0f); rlVertex3f(x + width / 2, y - height / 2, z + length / 2);
+    rlTexCoord2f(1.0f, 0.0f); rlVertex3f(x - width / 2, y - height / 2, z + length / 2);
+    // Right Face
+    rlNormal3f(1.0f, 0.0f, 0.0f);
+    rlTexCoord2f(1.0f, 0.0f); rlVertex3f(x + width / 2, y - height / 2, z - length / 2);
+    rlTexCoord2f(1.0f, 1.0f); rlVertex3f(x + width / 2, y + height / 2, z - length / 2);
+    rlTexCoord2f(0.0f, 1.0f); rlVertex3f(x + width / 2, y + height / 2, z + length / 2);
+    rlTexCoord2f(0.0f, 0.0f); rlVertex3f(x + width / 2, y - height / 2, z + length / 2);
     // Left Face
-    rlNormal3f(-1.0f, 0.0f, 0.0f);    // Normal Pointing Left
-    rlTexCoord2f(0.0f, 0.0f); rlVertex3f(x - width / 2, y - height / 2, z - length / 2);  // Bottom Left Of The Texture and Quad
-    rlTexCoord2f(1.0f, 0.0f); rlVertex3f(x - width / 2, y - height / 2, z + length / 2);  // Bottom Right Of The Texture and Quad
-    rlTexCoord2f(1.0f, 1.0f); rlVertex3f(x - width / 2, y + height / 2, z + length / 2);  // Top Right Of The Texture and Quad
-    rlTexCoord2f(0.0f, 1.0f); rlVertex3f(x - width / 2, y + height / 2, z - length / 2);  // Top Left Of The Texture and Quad
+    rlNormal3f(-1.0f, 0.0f, 0.0f);
+    rlTexCoord2f(0.0f, 0.0f); rlVertex3f(x - width / 2, y - height / 2, z - length / 2);
+    rlTexCoord2f(1.0f, 0.0f); rlVertex3f(x - width / 2, y - height / 2, z + length / 2);
+    rlTexCoord2f(1.0f, 1.0f); rlVertex3f(x - width / 2, y + height / 2, z + length / 2);
+    rlTexCoord2f(0.0f, 1.0f); rlVertex3f(x - width / 2, y + height / 2, z - length / 2);
     rlEnd();
-    //rlPopMatrix();
 
     rlSetTexture(0);
 }
 
+// -----------------------------------------------------------------------------
+// Función principal
+// -----------------------------------------------------------------------------
 int main(int argc, char** argv)
 {
-
     VideoConfig config = { 1024, 800, false, false };  // Valores predeterminados
-
     LoadConfig("config.ini", &config);
 
+    
+
+    
     FILE* configFile = fopen("config.ini", "r");
     if (configFile == NULL) {
         DebugLog(LOG_LEVEL_ERROR, MODULE_FILES, "config.ini not found");
-    } else {
+    }
+    else {
         fclose(configFile);
     }
 
-    // Configurar la ventana según la configuración leída
-    if (config.vsync) {
-        SetConfigFlags(FLAG_VSYNC_HINT);
-    }
-    if (config.fullscreen) {
-        SetConfigFlags(FLAG_FULLSCREEN_MODE);
-    }
+    if (config.vsync) SetConfigFlags(FLAG_VSYNC_HINT);
+    if (config.fullscreen) SetConfigFlags(FLAG_FULLSCREEN_MODE);
 
     // Crear la ventana y el contexto OpenGL
     InitWindow(config.resX, config.resY, "Hello Raylib");
-    if (config.fullscreen) {
-        ToggleFullscreen();
+    if (config.fullscreen) ToggleFullscreen();
+
+    // ***********************
+    // Cargar el modelo y la textura principal usando rutas relativas que funcionen
+    // (sin haber cambiado el directorio de trabajo aún)
+    // ***********************
+    Model model = LoadModel("resources/cottage_obj.obj");      // Carga el modelo
+    Texture2D texture = LoadTexture("resources/cottage_diffuse.png"); // Carga la textura
+    model.materials[0].maps[MATERIAL_MAP_DIFFUSE].texture = texture;
+    Vector3 position = { 0.0f, 0.0f, 0.0f };
+
+    // Verificar que el modelo se haya cargado correctamente
+    if (model.meshCount > 0) {
+        BoundingBox bounds = GetMeshBoundingBox(model.meshes[0]);
     }
-	// Tell the window to use vsync and work on high DPI displays
-	//SetConfigFlags(FLAG_VSYNC_HINT | FLAG_WINDOW_HIGHDPI);
+    else {
+        DebugLog(LOG_LEVEL_ERROR, MODULE_FILES, "Error: No se pudieron cargar los meshes del modelo");
+    }
 
- //   int resX = 1280;
- //   int resY = 800;
- //   bool wantsFullscreen = false;
- //   if (argc > 1)
- //   {
- //       for (int i = 0; i < argc; i++)
- //       { 
- //           //std::cout << "arg " << i << argv[i] << std::endl;
- //           fprintf(stderr, "arg %i : %s \n", i, argv[i]);
- //           if (strcmp(argv[i], "-resx") == 0) 
- //           {
- //               resX = atoi(argv[i + 1]);
- //           }
- //           if (strcmp(argv[i], "-resy") == 0)
- //           {
- //               resY = atoi(argv[i + 1]);
- //           }
- //           if (strcmp(argv[i], "-fullscreen") == 0)
- //           {
- //               //wantsFullscreen = true;
- //           }
- //       }
- //   }
+    // ***********************
+    // Ahora se cambia el directorio de trabajo para cargar otros recursos (p. ej. la textura "wood.png")
+    // Nota: Si cambias el directorio, asegúrate de ajustar las rutas en consecuencia.
+    // En este ejemplo, se asume que "wood.png" se encuentra en la carpeta "resources"
+    // ***********************
+    SearchAndSetResourceDir("resources");
 
+    // Descargar y cargar la marca de agua (watermark) sin usar libcurl
+    if (!FileExists("watermark.png"))
+    {
+    #if defined(_WIN32)
+        system("powershell -Command \"(New-Object System.Net.WebClient).DownloadFile('https://avatars.githubusercontent.com/u/139177589?s=96&v=4', 'watermark.png')\"");
+    #else
+        system("wget -q \"https://avatars.githubusercontent.com/u/139177589?s=96&v=4\" -O watermark.png");
+    #endif
+    }
 
-     // Establecer filtros
+    Image watermarkImage = LoadImage("watermark.png");    // Carga la imagen descargada
+    Texture2D watermarkTexture = LoadTextureFromImage(watermarkImage);
+    UnloadImage(watermarkImage);
+
+    // Cargar la textura para el cubo
+    Texture cubetext = LoadTexture("wood.png");
+
+    // Configurar la cámara 3D
+    Camera3D camera = { 0 };
+    camera.position = (Vector3){ 4, 0, 2 };
+    camera.target = (Vector3){ 0, 0, 0 };
+    camera.up = (Vector3){ 0, 1, 0 };
+    camera.fovy = 45;
+    camera.projection = CAMERA_PERSPECTIVE;
+
+    float cubeX = 0;
+    float cubeY = 0;
+    float cubeZ = 0;
+    float gravity = 0.5f;
+
     SetLogLevel(LOG_LEVEL_DEBUG);
-
-    // Ejemplos de uso de DebugLog
     DebugLog(LOG_LEVEL_INFO, MODULE_RENDER, "Render module initialized.");
     DebugLog(LOG_LEVEL_WARNING, MODULE_INPUT, "Input module warning.");
     DebugLog(LOG_LEVEL_ERROR, MODULE_AUDIO, "Audio module error.");
     DebugLog(LOG_LEVEL_DEBUG, MODULE_RENDER, "Render module debug message.");
 
-    printf("Iniitializing game's sub system.\n");
-
-    Model model = LoadModel("resources/cottage_obj.obj");                 // Load model
-    Texture2D texture = LoadTexture("resources/cottage_diffuse.png"); // Load model texture
-    model.materials[0].maps[MATERIAL_MAP_DIFFUSE].texture = texture;            // Set map diffuse texture
-
-    Vector3 position = { 0.0f, 0.0f, 0.0f };
-
-    BoundingBox bounds = GetMeshBoundingBox(model.meshes[0]);
+    // Calcula la posición para que la imagen quede en la esquina inferior derecha
+   
 
 
-	// Utility function from resource_dir.h to find the resources folder and set it as the current working directory so we can load from it
-	SearchAndSetResourceDir("resources");
-
-
-	Texture cubetext = LoadTexture("wood.png");
-
-
-	Camera3D camera = { 0 };
-	camera.position = (Vector3){ 4, 0, 2 };
-	camera.target = (Vector3){ 0, 0, 0 };
-	camera.up = (Vector3){ 0,1,0 };
-	camera.fovy = 45;
-	camera.projection = CAMERA_PERSPECTIVE;
-
-	float cubeX = 0;
-	float cubeY = 0;
-	float cubeZ = 0;
-
-	float gravity = 0.5;
-
-	// game loop
-	while (!WindowShouldClose())		// run the loop untill the user presses ESCAPE or presses the Close button on the window
-	{
-		UpdateCamera(&camera, CAMERA_FREE);
-
+    // Bucle principal
+    while (!WindowShouldClose())
+    {
+        UpdateCamera(&camera, CAMERA_FREE);
 
         if (IsFileDropped())
         {
             FilePathList droppedFiles = LoadDroppedFiles();
-
-            if (droppedFiles.count == 1) // Only support one file dropped
+            if (droppedFiles.count == 1)
             {
                 if (IsFileExtension(droppedFiles.paths[0], ".obj") ||
                     IsFileExtension(droppedFiles.paths[0], ".gltf") ||
                     IsFileExtension(droppedFiles.paths[0], ".glb") ||
                     IsFileExtension(droppedFiles.paths[0], ".vox") ||
                     IsFileExtension(droppedFiles.paths[0], ".iqm") ||
-                    IsFileExtension(droppedFiles.paths[0], ".m3d"))       // Model file formats supported
+                    IsFileExtension(droppedFiles.paths[0], ".m3d"))
                 {
-                    UnloadModel(model);                         // Unload previous model
-                    model = LoadModel(droppedFiles.paths[0]);   // Load new model
-                    model.materials[0].maps[MATERIAL_MAP_DIFFUSE].texture = texture; // Set current map diffuse texture
-
-                    bounds = GetMeshBoundingBox(model.meshes[0]);
-
-                    // TODO: Move camera position from target enough distance to visualize model properly
+                    UnloadModel(model);
+                    model = LoadModel(droppedFiles.paths[0]);
+                    model.materials[0].maps[MATERIAL_MAP_DIFFUSE].texture = texture;
                 }
-                else if (IsFileExtension(droppedFiles.paths[0], ".png"))  // Texture file formats supported
+                else if (IsFileExtension(droppedFiles.paths[0], ".png"))
                 {
-                    // Unload current model texture and load new one
                     UnloadTexture(texture);
                     texture = LoadTexture(droppedFiles.paths[0]);
                     model.materials[0].maps[MATERIAL_MAP_DIFFUSE].texture = texture;
                 }
             }
-
-            UnloadDroppedFiles(droppedFiles);    // Unload filepaths from memory
+            UnloadDroppedFiles(droppedFiles);
         }
 
+        BeginDrawing();
+        ClearBackground(BLACK);
 
-		// drawing
-		BeginDrawing();
-
-		// Setup the back buffer for drawing (clear color and depth buffers)
-		ClearBackground(BLACK);
-
-		// draw some text using the default font
-		//DrawText("Hello Raylib", 200,200,20,WHITE);
-
-		// draw our texture to the screen
-		//DrawTexture(wabbit, 400, 200, WHITE);
-
-		
-
-		BeginMode3D(camera);
-
+        BeginMode3D(camera);
         DrawModel(model, position, 1.0f, WHITE);
-
-		//DrawCube((Vector3) { cubeX, cubeY, cubeZ }, 5,5,5, RED);
         DrawCubeTexture(cubetext, (Vector3) { cubeX, cubeY, cubeZ }, 5, 5, 5, RAYWHITE);
+        if (cubeY != 0.0f) cubeY -= gravity;
+        DrawGrid(20, 10);
+        if (IsKeyDown(KEY_W)) cubeX += 0.5f;
+        if (IsKeyDown(KEY_S)) cubeX -= 0.5f;
+        if (IsKeyDown(KEY_A)) cubeZ -= 0.5f;
+        if (IsKeyDown(KEY_D)) cubeZ += 0.5f;
+        if ((cubeY != 10) && IsKeyPressed(KEY_SPACE)) cubeY += 15;
+        EndMode3D();
 
-		if (cubeY != 0.0)
-			cubeY -= gravity;
-		
-		DrawGrid(20, 10);
+        // Dibujar la marca de agua en la esquina inferior derecha
+        if (watermarkTexture.id != 0)
+        {
+            float scale = 0.5f;  // Escala: 0.5 equivale al 50% del tamaño original
+            int margin = 10;
+            int screenWidth = GetScreenWidth();
+            int screenHeight = GetScreenHeight();
+            Vector2 watermarkPos = {
+                    screenWidth - (watermarkTexture.width * scale) - margin,
+                    screenHeight - (watermarkTexture.height * scale) - margin
+            };
+            DrawTextureEx(watermarkTexture, watermarkPos, 0.0f, scale, WHITE);
+        }
 
-		if (IsKeyDown(KEY_W)) cubeX+= 0.5;
-		if (IsKeyDown(KEY_S)) cubeX -= 0.5;
-		if (IsKeyDown(KEY_A)) cubeZ -= 0.5;
-		if (IsKeyDown(KEY_D)) cubeZ += 0.5;
+        EndDrawing();
+    }
 
-		if(cubeY != 10)
-		if (IsKeyPressed(KEY_SPACE)) cubeY += 15;
-
-		EndMode3D();
-
-		
-		
-		// end the frame and get ready for the next one  (display frame, poll input, etc...)
-		EndDrawing();
-	}
-
-    UnloadTexture(texture); 
+    // Liberar recursos
+    UnloadTexture(texture);
     UnloadTexture(cubetext);
-    UnloadModel(model);        
+    UnloadModel(model);
+    if (watermarkTexture.id != 0) UnloadTexture(watermarkTexture);
 
-
-	// destroy the window and cleanup the OpenGL context
-	CloseWindow();
-	return 0;
+    CloseWindow();
+    return 0;
 }
