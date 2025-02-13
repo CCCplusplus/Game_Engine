@@ -11,6 +11,10 @@ by Jeffery Myers is marked with CC0 1.0.
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include "..\build\build_files\GameObject.h"
+#include "..\build\build_files\MemoryManager.h"
+#include <Vector>
+
 
 #include "resource_dir.h" // utility header for SearchAndSetResourceDir
 
@@ -167,12 +171,10 @@ int main(int argc, char** argv)
 
     
     FILE* configFile = fopen("config.ini", "r");
-    if (configFile == NULL) {
+    if (configFile == NULL)
         DebugLog(LOG_LEVEL_ERROR, MODULE_FILES, "config.ini not found");
-    }
-    else {
+    else 
         fclose(configFile);
-    }
 
     if (config.vsync) SetConfigFlags(FLAG_VSYNC_HINT);
     if (config.fullscreen) SetConfigFlags(FLAG_FULLSCREEN_MODE);
@@ -180,6 +182,20 @@ int main(int argc, char** argv)
     // Crear la ventana y el contexto OpenGL
     InitWindow(config.resX, config.resY, "Hello Raylib");
     if (config.fullscreen) ToggleFullscreen();
+
+    std::vector<GameObject*> gameObjects;
+
+    for (int i = 0; i < 1000; i++)
+    {
+        GameObject* k = GameObject::Spawn({ 5.0f * i,5.0f * i }, { 100,5.0f * i }, "Ottis");
+        gameObjects.push_back(k);
+
+    }
+
+    MemoryManager::getInstance()->alloc(800 * 1024 * 1024);
+
+    //GameObject *k = GameObject::Spawn({ 100,100 }, { 250,100 }, "Ottis");
+
 
     // ***********************
     // Cargar el modelo y la textura principal usando rutas relativas que funcionen
@@ -224,9 +240,9 @@ int main(int argc, char** argv)
 
     // Configurar la cámara 3D
     Camera3D camera = { 0 };
-    camera.position = (Vector3){ 4, 0, 2 };
-    camera.target = (Vector3){ 0, 0, 0 };
-    camera.up = (Vector3){ 0, 1, 0 };
+    camera.position = { 4, 0, 2 };
+    camera.target = { 0, 0, 0 };
+    camera.up = { 0, 1, 0 };
     camera.fovy = 45;
     camera.projection = CAMERA_PERSPECTIVE;
 
@@ -249,6 +265,10 @@ int main(int argc, char** argv)
     while (!WindowShouldClose())
     {
         UpdateCamera(&camera, CAMERA_FREE);
+
+        for (int i = 0; i < gameObjects.size(); i++)
+            gameObjects[i]->Update();
+        
 
         if (IsFileDropped())
         {
@@ -281,7 +301,7 @@ int main(int argc, char** argv)
 
         BeginMode3D(camera);
         DrawModel(model, position, 1.0f, WHITE);
-        DrawCubeTexture(cubetext, (Vector3) { cubeX, cubeY, cubeZ }, 5, 5, 5, RAYWHITE);
+        DrawCubeTexture(cubetext, Vector3{ cubeX, cubeY, cubeZ }, 5, 5, 5, RAYWHITE);
         if (cubeY != 0.0f) cubeY -= gravity;
         DrawGrid(20, 10);
         if (IsKeyDown(KEY_W)) cubeX += 0.5f;
@@ -290,6 +310,11 @@ int main(int argc, char** argv)
         if (IsKeyDown(KEY_D)) cubeZ += 0.5f;
         if ((cubeY != 10) && IsKeyPressed(KEY_SPACE)) cubeY += 15;
         EndMode3D();
+
+        for (int i = 0; i < gameObjects.size(); i++)
+        {
+            gameObjects[i]->Draw();
+        }
 
         // Dibujar la marca de agua en la esquina inferior derecha
         if (watermarkTexture.id != 0)
