@@ -13,10 +13,17 @@ by Jeffery Myers is marked with CC0 1.0.
 #include <stdlib.h>
 #include "..\build\build_files\GameObject.h"
 #include "..\build\build_files\MemoryManager.h"
+#include "..\build\build_files\AudioManager.h"
+#include   "..\build\build_files\Component.h"
 #include <Vector>
+#include "lua.hpp"
 
 
 #include "resource_dir.h" // utility header for SearchAndSetResourceDir
+
+extern "C" {
+    #include "md5.h"
+}
 
 // -----------------------------------------------------------------------------
 // Definición de niveles de verbosidad y módulos para DebugLog
@@ -41,6 +48,98 @@ LogLevel currentLogLevel = LOG_LEVEL_DEBUG;
 
 void SetLogLevel(LogLevel level) {
     currentLogLevel = level;
+}
+
+void luaDraw(lua_State* L, float dt)
+{
+    lua_getglobal(L, "Draw");
+    if (lua_isfunction(L, -1))
+    {
+        //Log(L"Calling draw function from lua");
+        lua_pushnumber(L, dt);
+        if (lua_pcall(L, 1, 0, 0) != 0)
+        {
+            printf("Error calling draw function from lua");
+            printf(lua_tostring(L, -1));
+        }
+    }
+    else
+    {
+        printf("Draw function not found in lua");
+    }
+}
+
+int Clear(lua_State* L) 
+{
+    int r = (float)lua_tonumber(L, 1);
+    int g = (float)lua_tonumber(L, 2);
+    int b = (float)lua_tonumber(L, 3);
+	int a = (float)lua_tonumber(L, 4);
+
+	Color c = { r, g, b, a };
+
+	ClearBackground(c);
+
+	return 0;
+}
+
+int drawCircle(lua_State* L)
+{
+    float x = (float)lua_tonumber(L, 1);
+    float y = (float)lua_tonumber(L, 2);
+    float radius = (float)lua_tonumber(L, 3);
+    int r = (float)lua_tonumber(L, 4);
+    int g = (float)lua_tonumber(L, 5);
+    int b = (float)lua_tonumber(L, 6);
+    int a = (float)lua_tonumber(L, 7);
+    Color c = { r, g, b, a };
+    DrawCircle(x, y, radius, c);
+    return 0;
+}
+
+int drawRect(lua_State* L)
+{
+    float x = (float)lua_tonumber(L, 1);
+    float y = (float)lua_tonumber(L, 2);
+    float width = (float)lua_tonumber(L, 3);
+    float height = (float)lua_tonumber(L, 4);
+    int r = (float)lua_tonumber(L, 5);
+    int g = (float)lua_tonumber(L, 6);
+    int b = (float)lua_tonumber(L, 7);
+    int a = (float)lua_tonumber(L, 8);
+    Color c = { r, g, b, a };
+    DrawRectangle(x, y, width, height, c);
+    return 0;
+}
+
+int drawLine(lua_State* L)
+{
+    float x1 = (float)lua_tonumber(L, 1);
+    float y1 = (float)lua_tonumber(L, 2);
+    float x2 = (float)lua_tonumber(L, 3);
+    float y2 = (float)lua_tonumber(L, 4);
+    int r = (float)lua_tonumber(L, 5);
+    int g = (float)lua_tonumber(L, 6);
+    int b = (float)lua_tonumber(L, 7);
+    int a = (float)lua_tonumber(L, 8);
+    Color c = { r, g, b, a };
+    DrawLine(x1, y1, x2, y2, c);
+    return 0;
+}
+
+//para crear la biblioteca de funciones en lua
+int lua_mymodule(lua_State* L)
+{
+    static const luaL_Reg myModule[] =
+    {
+    { "Clear", Clear },
+    { "DrawCircle", drawCircle },
+    { "DrawRect", drawRect },
+    { "DrawLine", drawLine },
+    { NULL, NULL }
+    };
+    luaL_newlib(L, myModule);
+    return 1;
 }
 
 void DebugLog(LogLevel level, Module module, const char* message) {
@@ -164,43 +263,72 @@ void DrawCubeTexture(Texture2D texture, Vector3 position, float width, float hei
 // -----------------------------------------------------------------------------
 int main(int argc, char** argv)
 {
-    VideoConfig config = { 1024, 800, false, false };  // Valores predeterminados
+
+    //prueba md5
+    char* input = "Hello, World!";
+    uint8_t result[16];
+    md5String(input, result);
+    for (int i = 0; i < 16; i++)
+        printf("%02x", result[i]);
+
+    char hash[33];
+
+    for (int i = 0; i < 16; i++)
+        sprintf(&hash[1 * 2], "%02x", (unsigned int)result[i]);
+
+    puts("");
+    std::cout << hash << std::endl;
+
+    // Inicializar lua y cargar funciones del de dibujo usando main.lua
+    lua_State* L = luaL_newstate();
+    luaL_openlibs(L);
+    luaL_requiref(L, "SimpleDraw", lua_mymodule, 1);
+    lua_pop(L, 1);
+
+    if (luaL_dofile(L, "main.lua"))
+    {
+        printf("Error cargando el scripto main.lua");
+        printf(lua_tostring(L, -1));
+    }
+    else
+        printf("Lua file loaded");
+
+
+
+
+    VideoConfig config = { 1024, 800, true, false };  // Valores predeterminados
     LoadConfig("config.ini", &config);
+    printf("Loaded config: resX=%d, resY=%d, fullscreen=%d, vsync=%d\n", config.resX, config.resY, config.fullscreen, config.vsync);
 
-    
 
-    
     FILE* configFile = fopen("config.ini", "r");
     if (configFile == NULL)
         DebugLog(LOG_LEVEL_ERROR, MODULE_FILES, "config.ini not found");
-    else 
+    else
         fclose(configFile);
 
     if (config.vsync) SetConfigFlags(FLAG_VSYNC_HINT);
     if (config.fullscreen) SetConfigFlags(FLAG_FULLSCREEN_MODE);
 
     // Crear la ventana y el contexto OpenGL
-    InitWindow(config.resX, config.resY, "Hello Raylib");
+    InitWindow(config.resX, config.resY, "Game Engine");
     if (config.fullscreen) ToggleFullscreen();
 
-    std::vector<GameObject*> gameObjects;
+    /*std::vector<GameObject*> gameObjects;
 
     for (int i = 0; i < 1000; i++)
     {
         GameObject* k = GameObject::Spawn({ 5.0f * i,5.0f * i }, { 100,5.0f * i }, "Ottis");
         gameObjects.push_back(k);
 
-    }
+    }*/
 
     MemoryManager::getInstance()->alloc(800 * 1024 * 1024);
 
-    //GameObject *k = GameObject::Spawn({ 100,100 }, { 250,100 }, "Ottis");
+    GameObject *k = GameObject::Spawn({ 100,100 }, { 250,100 }, "Ottis");
 
 
-    // ***********************
-    // Cargar el modelo y la textura principal usando rutas relativas que funcionen
-    // (sin haber cambiado el directorio de trabajo aún)
-    // ***********************
+
     Model model = LoadModel("resources/cottage_obj.obj");      // Carga el modelo
     Texture2D texture = LoadTexture("resources/cottage_diffuse.png"); // Carga la textura
     model.materials[0].maps[MATERIAL_MAP_DIFFUSE].texture = texture;
@@ -214,26 +342,49 @@ int main(int argc, char** argv)
         DebugLog(LOG_LEVEL_ERROR, MODULE_FILES, "Error: No se pudieron cargar los meshes del modelo");
     }
 
-    // ***********************
-    // Ahora se cambia el directorio de trabajo para cargar otros recursos (p. ej. la textura "wood.png")
-    // Nota: Si cambias el directorio, asegúrate de ajustar las rutas en consecuencia.
-    // En este ejemplo, se asume que "wood.png" se encuentra en la carpeta "resources"
-    // ***********************
+
     SearchAndSetResourceDir("resources");
 
     // Descargar y cargar la marca de agua (watermark) sin usar libcurl
     if (!FileExists("watermark.png"))
     {
-    #if defined(_WIN32)
+#if defined(_WIN32)
         system("powershell -Command \"(New-Object System.Net.WebClient).DownloadFile('https://avatars.githubusercontent.com/u/139177589?s=96&v=4', 'watermark.png')\"");
-    #else
+#else
         system("wget -q \"https://avatars.githubusercontent.com/u/139177589?s=96&v=4\" -O watermark.png");
-    #endif
+#endif
     }
 
     Image watermarkImage = LoadImage("watermark.png");    // Carga la imagen descargada
     Texture2D watermarkTexture = LoadTextureFromImage(watermarkImage);
     UnloadImage(watermarkImage);
+
+   
+
+    //Descargar e imprimir en pantalla un dato curioso de la pagina https://uselessfacts.jsph.pl/api/v2/facts/random sin usar libcurl
+    {
+    #if defined(_WIN32)
+        system("powershell -Command \"(New-Object System.Net.WebClient).DownloadFile('https://uselessfacts.jsph.pl/api/v2/facts/random', 'fact.txt')\"");
+    #else
+        system("wget -q \"https://uselessfacts.jsph.pl/api/v2/facts/random\" -O fact.txt");
+    #endif
+    }
+
+    // Read and print the fact from the file
+    FILE* factFile = fopen("fact.txt", "r");
+    if (factFile != NULL)
+    {
+        char fact[512];
+        if (fgets(fact, sizeof(fact), factFile) != NULL)
+        {
+            printf("Random Fact: %s\n", fact);
+        }
+        fclose(factFile);
+    }
+    else
+    {
+        printf("Failed to open fact.txt\n");
+    }
 
     // Cargar la textura para el cubo
     Texture cubetext = LoadTexture("wood.png");
@@ -246,29 +397,48 @@ int main(int argc, char** argv)
     camera.fovy = 45;
     camera.projection = CAMERA_PERSPECTIVE;
 
+    AudioManager::getInstance()->LoadBackgroundMusic("52_Big_Blue.mp3");
+    AudioManager::getInstance()->playSound();
+
     float cubeX = 0;
     float cubeY = 0;
     float cubeZ = 0;
     float gravity = 0.5f;
 
     SetLogLevel(LOG_LEVEL_DEBUG);
-    DebugLog(LOG_LEVEL_INFO, MODULE_RENDER, "Render module initialized.");
-    DebugLog(LOG_LEVEL_WARNING, MODULE_INPUT, "Input module warning.");
-    DebugLog(LOG_LEVEL_ERROR, MODULE_AUDIO, "Audio module error.");
-    DebugLog(LOG_LEVEL_DEBUG, MODULE_RENDER, "Render module debug message.");
+    //DebugLog(LOG_LEVEL_INFO, MODULE_RENDER, "Render module initialized.");
+    //DebugLog(LOG_LEVEL_WARNING, MODULE_INPUT, "Input module warning.");
+    //DebugLog(LOG_LEVEL_ERROR, MODULE_AUDIO, "Audio module error.");
+    //DebugLog(LOG_LEVEL_DEBUG, MODULE_RENDER, "Render module debug message.");
 
     // Calcula la posición para que la imagen quede en la esquina inferior derecha
-   
 
+    /*for (int i = 0; i < 100; i++)
+    {
+        GameObject* go = new GameObject();
+        ptrComponent newComp = std::make_shared<Component>();
+        go->AddComponent(newComp);
+        gameObjects.push_back(go);
+    }*/
 
     // Bucle principal
     while (!WindowShouldClose())
     {
         UpdateCamera(&camera, CAMERA_FREE);
+        AudioManager::getInstance()->Update();
 
-        for (int i = 0; i < gameObjects.size(); i++)
-            gameObjects[i]->Update();
         
+
+        /* for (int i = 0; i < gameObjects.size(); i++) {
+             if (gameObjects[i]->enabled)
+             {
+                 GameObject* k = GameObject::Spawn({ 5.0f * i,5.0f * i }, { 100,5.0f * i }, "thingo");
+                 k->enabled = i % 2 == 0;
+                 gameObjects[i]->Update(GetFrameTime());
+             }
+
+         }*/
+
 
         if (IsFileDropped())
         {
@@ -299,6 +469,8 @@ int main(int argc, char** argv)
         BeginDrawing();
         ClearBackground(BLACK);
 
+        DrawText("hipity hopity", 10, 10, 20, RED);
+
         BeginMode3D(camera);
         DrawModel(model, position, 1.0f, WHITE);
         DrawCubeTexture(cubetext, Vector3{ cubeX, cubeY, cubeZ }, 5, 5, 5, RAYWHITE);
@@ -311,10 +483,10 @@ int main(int argc, char** argv)
         if ((cubeY != 10) && IsKeyPressed(KEY_SPACE)) cubeY += 15;
         EndMode3D();
 
-        for (int i = 0; i < gameObjects.size(); i++)
+        /*for (int i = 0; i < gameObjects.size(); i++)
         {
-            gameObjects[i]->Draw();
-        }
+            gameObjects[i]->Draw(GetFrameTime());
+        }*/
 
         // Dibujar la marca de agua en la esquina inferior derecha
         if (watermarkTexture.id != 0)
@@ -330,6 +502,8 @@ int main(int argc, char** argv)
             DrawTextureEx(watermarkTexture, watermarkPos, 0.0f, scale, WHITE);
         }
 
+        luaDraw(L, GetFrameTime());
+
         EndDrawing();
     }
 
@@ -339,6 +513,15 @@ int main(int argc, char** argv)
     UnloadModel(model);
     if (watermarkTexture.id != 0) UnloadTexture(watermarkTexture);
 
+    //evita el Run-Time Check Failure #2 - Stack around the variable 'config' was corrupted.
+	fclose(configFile);
+
+	//borrar fact.txt no solo remove si no que borrar el archivo
+	
+
+
+
     CloseWindow();
+
     return 0;
 }
