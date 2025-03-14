@@ -469,8 +469,6 @@ int main(int argc, char** argv)
         BeginDrawing();
         ClearBackground(BLACK);
 
-        DrawText("hipity hopity", 10, 10, 20, RED);
-
         BeginMode3D(camera);
         DrawModel(model, position, 1.0f, WHITE);
         DrawCubeTexture(cubetext, Vector3{ cubeX, cubeY, cubeZ }, 5, 5, 5, RAYWHITE);
